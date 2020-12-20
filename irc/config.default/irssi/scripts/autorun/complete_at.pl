@@ -1,1 +1,0 @@
-/scripts.irssi.org/scripts/complete_at.pl

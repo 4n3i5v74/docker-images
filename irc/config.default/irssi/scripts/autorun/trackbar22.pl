@@ -1,1 +1,0 @@
-/scripts.irssi.org/scripts/trackbar22.pl

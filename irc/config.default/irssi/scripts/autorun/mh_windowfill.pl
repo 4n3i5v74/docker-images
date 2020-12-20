@@ -1,1 +1,0 @@
-/scripts.irssi.org/scripts/mh_windowfill.pl
