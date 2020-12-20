@@ -1,24 +1,16 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 MAINTAINER dreamcat4 <dreamcat4@gmail.com>
 
 
-ENV _clean="rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*"
-ENV _apt_clean="eval apt-get clean && $_clean"
+ARG _clean="rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*"
+ARG _apt_clean="eval apt-get clean && $_clean"
+ARG DEBIAN_FRONTEND=noninteractive
 # apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y
 
 
-# Install s6-overlay
-ENV s6_overlay_version="1.22.1.0"
-ADD https://github.com/just-containers/s6-overlay/releases/download/v${s6_overlay_version}/s6-overlay-amd64.tar.gz /tmp/
-RUN tar hzxf /tmp/s6-overlay-amd64.tar.gz -C / --exclude=usr/bin/execlineb \
- && tar hzxf /tmp/s6-overlay-amd64.tar.gz -C /usr ./bin/execlineb && $_clean
-ENV S6_LOGGING="1"
-# ENV S6_KILL_GRACETIME="3000"
-
-
 # Supportive pkgs
-RUN apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    iproute2 net-tools wget curl git sudo nano less man && $_apt_clean
+RUN apt-get update -qqy && apt-get install -y \
+    lsb-release iproute2 net-tools wget curl git sudo nano less man && $_apt_clean
 
 # Output folder
 RUN mkdir -p /out
@@ -27,8 +19,7 @@ RUN mkdir -p /out
 
 # ===
 # dnsmasq - install build time dependancies
-RUN apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    ca-certificates make gcc && $_apt_clean
+RUN apt-get update -qqy && apt-get install -y ca-certificates make gcc && $_apt_clean
 
 # dnsmasq - Build from source
 RUN mkdir -p /build/dnsmasq
@@ -53,7 +44,7 @@ RUN cd dnsmasq/out && tar -czvf /out/dnsmasq-$(cat /out/dnsmasq_version)_linux-x
 
 # ===
 # ipxe - install build time dependancies
-RUN apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+RUN apt-get update -qqy && apt-get install -y \
     gcc binutils make perl syslinux liblzma-dev genisoimage && $_apt_clean
 
 
@@ -92,7 +83,7 @@ RUN cd /build/ipxe/out && tar -czvf /out/ipxe-$(cat /out/ipxe_version)_linux-x86
 
 # # ===
 # # istgt - install build time dependancies
-# RUN apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+# RUN apt-get update -qqy && apt-get install -y \
 #     curl wget gcc binutils make libssl-dev && $_apt_clean
 
 # # istgt - Build from source
@@ -123,13 +114,13 @@ RUN chmod +x /bin/upload-to-bintray
 
 
 # Execute our upload script
-ADD bintray-env /out/
-RUN upload-to-bintray && rm /out/bintray-env && ls -lsa /out/
+# ADD bintray-env /out/
+# RUN upload-to-bintray && rm /out/bintray-env && ls -lsa /out/
 
 
 # Default container settings
 VOLUME /out
-ENTRYPOINT ["/init","/bin/sleep","99999999"]
+ENTRYPOINT ["/bin/sleep","99999999"]
 
 
 

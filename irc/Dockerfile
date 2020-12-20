@@ -1,14 +1,16 @@
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 MAINTAINER dreamcat4 <dreamcat4@gmail.com>
 
 
-ENV _clean="rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*"
-ENV _apt_clean="eval apt-get clean && $_clean"
+ARG _clean="rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*"
+ARG _apt_clean="eval apt-get clean && $_clean"
+ARG DEBIAN_FRONTEND=noninteractive
+ARG APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1
 # apt-get clean -y && apt-get autoclean -y && apt-get autoremove -y
 
 
 # Install s6-overlay
-ENV s6_overlay_version="1.22.1.0"
+ARG s6_overlay_version="1.22.1.0"
 ADD https://github.com/just-containers/s6-overlay/releases/download/v${s6_overlay_version}/s6-overlay-amd64.tar.gz /tmp/
 RUN tar hzxf /tmp/s6-overlay-amd64.tar.gz -C / --exclude=usr/bin/execlineb \
  && tar hzxf /tmp/s6-overlay-amd64.tar.gz -C /usr ./bin/execlineb && $_clean
@@ -22,16 +24,16 @@ RUN tar hzxf /tmp/pipework-master.tar.gz -C /tmp && cp /tmp/pipework-master/pipe
 
 
 # Install gnupg2
-RUN apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -qqy gnupg2 && $_apt_clean
+RUN apt-get update -qq && apt-get install -qqy gnupg2 && $_apt_clean
 
 
 # Install support pkgs
-RUN apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    wget apt-transport-https ca-certificates nano less man git sudo && $_apt_clean
+RUN apt-get update -qqy && apt-get install -y \
+    lsb-release wget apt-transport-https ca-certificates nano less man git sudo && $_apt_clean
 
 
 # Install ngircd
-RUN apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y ngircd && $_apt_clean
+RUN apt-get update -qqy && apt-get install -y ngircd && $_apt_clean
 
 # Setup ngircd user
 RUN groupadd -o -g 5914 ngircd \
@@ -51,7 +53,7 @@ RUN groupadd -o -g 8153 atheme \
 
 
 # Install znc
-RUN apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y znc && $_apt_clean
+RUN apt-get update -qqy && apt-get install -y znc && $_apt_clean
 
 # Install external znc-modules
 RUN wget -O /tmp/znc-modules.tar.gz https://dl.bintray.com/dreamcat4/linux/znc-modules/znc-modules-latest_linux-x86_64.tar.gz \
@@ -71,37 +73,43 @@ RUN groupadd -o -g 6697 znc \
 # Install bitlbee
 
 # Hack, install older version of libgnutls to meet bitlbee-libpurple dependancy on wily 15.10 - old bitlebee repo target
-RUN wget -O /tmp/libgnutls-deb0-28_amd64.deb http://launchpadlibrarian.net/234823129/libgnutls-deb0-28_3.3.20-1ubuntu1_amd64.deb && dpkg -i /tmp/libgnutls-deb0-28_amd64.deb \
- && $_apt_clean
+# RUN wget -O /tmp/libgnutls-deb0-28_amd64.deb http://launchpadlibrarian.net/234823129/libgnutls-deb0-28_3.3.20-1ubuntu1_amd64.deb && dpkg -i /tmp/libgnutls-deb0-28_amd64.deb \
+#  && $_apt_clean
 
 RUN wget -O- https://code.bitlbee.org/debian/release.key | apt-key add - \
- && echo "deb http://code.bitlbee.org/debian/master/wily/amd64/ ./" >> /etc/apt/sources.list \
+ && echo "deb http://code.bitlbee.org/debian/master/focal/amd64/ ./" >> /etc/apt/sources.list \
  && wget -O- https://jgeboski.github.io/obs.key | apt-key add - \
- && echo "deb http://download.opensuse.org/repositories/home:/jgeboski/xUbuntu_16.04 ./" >> /etc/apt/sources.list \
+ && echo "deb http://download.opensuse.org/repositories/home:/jgeboski/xUbuntu_20.04 ./" >> /etc/apt/sources.list \
  && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys C03AA79CFFEBD240 \
- && echo "deb http://ppa.launchpad.net/aap/pidgin/ubuntu xenial main" >> /etc/apt/sources.list \
+ && echo "deb http://ppa.launchpad.net/aap/pidgin/ubuntu eoan main" >> /etc/apt/sources.list \
  && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 531EE72F4C9D234C \
- && echo "deb http://ppa.launchpad.net/nilarimogard/webupd8/ubuntu xenial main" >> /etc/apt/sources.list \
+ && echo "deb http://ppa.launchpad.net/nilarimogard/webupd8/ubuntu focal main" >> /etc/apt/sources.list \
  \
- && apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y rsyslog \
+ && apt-get update -qqy && apt-get install -y rsyslog \
     bitlbee-libpurple bitlbee-plugin-otr \
     bitlbee-steam bitlbee-facebook \
-    pidgin-sipe pidgin-skypeweb \
+    pidgin-sipe \
     telegram-purple \
  \
  && $_apt_clean
 
-# Hack, install older version of libprotobuf to meet dependancies
-# This whatsapp-purple PPA needs newer ubuntu version as trusty 14.04 too old now
-RUN wget -O /tmp/libprotobuf8_amd64.deb http://security.ubuntu.com/ubuntu/pool/main/p/protobuf/libprotobuf8_2.5.0-9ubuntu1_amd64.deb && dpkg -i /tmp/libprotobuf8_amd64.deb \
- && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys C777F0E392FAE28B \
- && echo "deb http://ppa.launchpad.net/whatsapp-purple/ppa/ubuntu trusty main" >> /etc/apt/sources.list \
- && apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y pidgin-whatsapp \
- && $_apt_clean
+# # Hack, install older version of libprotobuf to meet dependancies
+# # This whatsapp-purple PPA needs newer ubuntu version as trusty 14.04 too old now
+# RUN wget -O /tmp/libprotobuf8_amd64.deb http://security.ubuntu.com/ubuntu/pool/main/p/protobuf/libprotobuf8_2.5.0-9ubuntu1_amd64.deb && dpkg -i /tmp/libprotobuf8_amd64.deb \
+#  && apt-key adv --keyserver keyserver.ubuntu.com --recv-keys C777F0E392FAE28B \
+#  && echo "deb http://ppa.launchpad.net/whatsapp-purple/ppa/ubuntu trusty main" >> /etc/apt/sources.list \
+#  && apt-get update -qqy && apt-get install -y pidgin-whatsapp \
+#  && $_apt_clean
+
+# Source: https://github.com/EionRobb/skype4pidgin
+RUN wget -O /usr/lib/purple-2/libskypeweb.so https://github.com/EionRobb/skype4pidgin/releases/download/1.7/libskypeweb.so
+
+# Compiled for ubuntu 18.04 - https://github.com/hoehermann/purple-gowhatsapp
+RUN wget -O /usr/lib/purple-2/libgowhatsapp_0.4.0.so https://buildbot.hehoe.de/purple-gowhatsapp/builds/libgowhatsapp_0.4.0~gitf0802d1+gowhatsapp~git0051037_amd64_ubuntu18.04.so
 
 # Bitlbee - libpurpletorchat
 ENV _torchat_ver="2.0-alpha-14"
-RUN apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y tor bzip2 \
+RUN apt-get update -qqy && apt-get install -y tor bzip2 \
  && wget -O /tmp/libpurpletorchat.tar.bz2 https://github.com/downloads/prof7bit/TorChat/libpurpletorchat-${_torchat_ver}-linux-x86-64.tar.bz2 \
  && tar -C /usr/lib/purple-2 --strip-components=1 -jxvf /tmp/libpurpletorchat.tar.bz2 libpurpletorchat/libpurpletorchat.so && $_apt_clean
 
@@ -114,16 +122,28 @@ RUN groupmod -o -g 6111 bitlbee \
 
 
 
+# # Install limnoria (aka supybot)
+# RUN apt-get update -qqy && apt-get install -y \
+#     python-dev python-pip pkg-config graphviz graphviz-dev libxml2-dev libxslt1-dev python-cobe \
+#  && pip install --upgrade pip setuptools \
+#  && pip install -r https://raw.githubusercontent.com/ProgVal/Limnoria/master/requirements.txt --upgrade \
+#  && pip install limnoria --upgrade && chmod +x /usr/local/bin/supybot* \
+#  && pip install -r https://raw.githubusercontent.com/ProgVal/Supybot-plugins/master/requirements.txt --upgrade \
+#  && wget -q -O- https://raw.githubusercontent.com/GLolol/SupyPlugins/master/requirements.txt | grep -v "Limnoria.git" > /tmp/glol.reqs.txt \
+#  && pip install -r /tmp/glol.reqs.txt --upgrade && rm /tmp/glol.reqs.txt \
+#  \
+#  && $_apt_clean
+
 # Install limnoria (aka supybot)
-RUN apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    python-dev python-pip pkg-config graphviz graphviz-dev libxml2-dev libxslt1-dev python-cobe \
- && pip install --upgrade pip setuptools \
- && pip install -r https://raw.githubusercontent.com/ProgVal/Limnoria/master/requirements.txt --upgrade \
- && pip install limnoria --upgrade && chmod +x /usr/local/bin/supybot* \
- && pip install -r https://raw.githubusercontent.com/ProgVal/Supybot-plugins/master/requirements.txt --upgrade \
- && wget -q -O- https://raw.githubusercontent.com/GLolol/SupyPlugins/master/requirements.txt | grep -v "Limnoria.git" > /tmp/glol.reqs.txt \
- && pip install -r /tmp/glol.reqs.txt --upgrade && rm /tmp/glol.reqs.txt \
+RUN apt-get update -qqy && apt-get install -y \
+ python3 python3-pip python3-wheel python3-dev pkg-config graphviz graphviz-dev libxml2-dev libxslt1-dev \
  \
+ && pip3 install -r https://raw.githubusercontent.com/ProgVal/Limnoria/master/requirements.txt --upgrade \
+ && pip3 install -r https://raw.githubusercontent.com/ProgVal/Supybot-plugins/master/requirements.txt --upgrade \
+ && wget -q -O- https://raw.githubusercontent.com/jlu5/SupyPlugins/master/requirements.txt | \
+    grep -v "Limnoria.git" | pip3 install -r /dev/stdin \
+ \
+ && pip3 install limnoria --upgrade \
  && $_apt_clean
 
 # NOTE: overlayfs bug causes pip dependancies install failure below ^^;
@@ -142,7 +162,7 @@ RUN mkdir -p limnoria-plugins/spline \
  && for _spline_plugin in $_spline_plugins; \
  do wget -q -O- https://raw.githubusercontent.com/reticulatingspline/${_spline_plugin}/master/requirements.txt | grep -v "Limnoria.git" > /tmp/spline.reqs.txt || break ; \
     echo "processing deps for \"reticulatingspline/${_spline_plugin}\":" && cat /tmp/spline.reqs.txt && echo \
- && pip install -r /tmp/spline.reqs.txt --upgrade && rm /tmp/spline.reqs.txt && echo \
+ && pip3 install -r /tmp/spline.reqs.txt --upgrade && rm /tmp/spline.reqs.txt && echo \
   ; done \
  \
  && for _spline_plugin in $_spline_plugins; \
@@ -152,7 +172,7 @@ RUN mkdir -p limnoria-plugins/spline \
 
 RUN mkdir -p limnoria-plugins \
  && git clone https://github.com/ProgVal/Supybot-plugins limnoria-plugins/progval \
- && git clone https://github.com/GLolol/SupyPlugins limnoria-plugins/glolol
+ && git clone https://github.com/jlu5/SupyPlugins limnoria-plugins/glolol
 
 RUN echo Checking limnoria was installed && ls -lsa /usr/local/bin/supybot
 
@@ -163,24 +183,25 @@ RUN groupadd -o -g 1135 limnoria \
 
 
 
-# Install irssi from nei's irssi-test repo, on opensuse
-RUN wget -O- http://download.opensuse.org/repositories/home:ailin_nemui:irssi-test/xUbuntu_16.04/Release.key | apt-key add - \
- && echo "deb http://download.opensuse.org/repositories/home:/ailin_nemui:/irssi-test/xUbuntu_16.04/ /" >> /etc/apt/sources.list \
- && apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    libtime-duration-perl libwww-perl libnotify-bin libmime-base64-urlsafe-perl \
-    irssi make cpanminus irssi-scripts irssi-plugin-otr irssi-plugin-xmpp \
- && cpanm WebService::HipChat Algorithm::Diff \
- && $_apt_clean
-
-# # Install irssi from official ubuntu apt repo
-# RUN apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+# # Install irssi from nei's irssi-test repo, on opensuse
+# RUN wget -O- http://download.opensuse.org/repositories/home:ailin_nemui:irssi-test/xUbuntu_20.04/Release.key | apt-key add - \
+#  && echo "deb http://download.opensuse.org/repositories/home:/ailin_nemui:/irssi-test/xUbuntu_20.04/ /" >> /etc/apt/sources.list \
+#  && apt-get update -qqy && apt-get install -y \
 #     libtime-duration-perl libwww-perl libnotify-bin libmime-base64-urlsafe-perl \
-#     irssi make cpanminus irssi-scripts irssi-plugin-otr irssi-plugin-xmpp \
+#     irssi make cpanminus irssi-scripts irssi-plugin-otr irssi-plugin-robustirc irssi-plugin-xmpp \
 #  && cpanm WebService::HipChat Algorithm::Diff \
 #  && $_apt_clean
 
+# Install irssi from official ubuntu apt repo
+RUN apt-get update -qqy && apt-get install -y \
+    libtime-duration-perl libwww-perl libnotify-bin libmime-base64-urlsafe-perl \
+    irssi make cpanminus irssi-scripts irssi-plugin-otr irssi-plugin-robustirc irssi-plugin-xmpp \
+ && cpanm WebService::HipChat Algorithm::Diff \
+ && cpanm Text::CharWidth \
+ && $_apt_clean
+
 # For irssi / adv_windowlist.pl:
- # && cpanm Text::CharWidth \
+# && cpanm Text::CharWidth \
 
 
 # Irssi - Download scripts and themes
@@ -197,9 +218,9 @@ RUN groupadd -o -g 1455 irssi \
 
 # Install weechat
 RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys D1820DB22A11534E \
- && echo "deb https://weechat.org/ubuntu xenial main" >> /etc/apt/sources.list \
+ && echo "deb https://weechat.org/ubuntu focal main" >> /etc/apt/sources.list \
  \
- && apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+ && apt-get update -qqy && apt-get install -y \
     weechat weechat-plugins \
  \
  && $_apt_clean
@@ -211,7 +232,7 @@ RUN groupadd -o -g 3333 weechat \
 
 
 # Install tmux, sshd and other supportive pkgs
-RUN apt-get update -qqy && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+RUN apt-get update -qqy && apt-get install -y \
     tmux openssh-server socat nmap \
  && $_apt_clean
 
